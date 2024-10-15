@@ -42,17 +42,20 @@ def move2(x, d):
     return y / np.linalg.norm(y)
 
 
-class simulatedAnnealing():
+class GDSphere():
     def __init__(
             self,
             n,
             m,
             initial_state=None,
+            k=2,
+            epoch=0,
+            min_dis=2,
+            delta=1,
             lr=1e-2,
             momentum=.0,
             e=1e-10,
             e2=1e-5,
-            k=2,
             stop_at=1e+5,
     ):
         """
@@ -70,13 +73,13 @@ class simulatedAnnealing():
         self.momentum = momentum
         self.e = e
         self.e2 = e2
-        self.k = 2
+        self.k = k
         self.stop_at = stop_at
 
         # simulation variables
-        self.epoch = 1
-        self.min_dis = 2
-        self.delta = 1
+        self.epoch = epoch
+        self.min_dis = min_dis
+        self.delta = delta
         self.current_speed = np.zeros_like(self.vectors)
 
     def display(self):
@@ -87,6 +90,7 @@ class simulatedAnnealing():
     def calc_force(self):
         vectors = self.vectors
         total_force = np.zeros_like(vectors)
+        # TODO: this is a wierd/good method?
         max_dis_allowed = self.delta * 1000 / self.lr
         dis = []
         for i in range(self.m):
@@ -110,37 +114,61 @@ class simulatedAnnealing():
         if self.epoch >= self.stop_at:
             print("- Simulation ended at epoch limit!")
 
-    def simulate(self):
-        while True:
-            # calculate force
-            total_force = self.calc_force()
-            # move
-            new_speed = self.momentum * self.current_speed + self.lr * total_force
-            new_vectors = [move2(x, f) for x, f in zip(self.vectors, new_speed)]
-            self.delta = max([np.linalg.norm(new_x - x) for new_x, x in zip(new_vectors, self.vectors)])
-            # step up k
-            if self.delta < self.e2 and self.k < 50:
+    def main(self, display=True):
+        next_step = True
+        while next_step:
+            next_step = self.step()
+        if display:
+            self.display()
+            self.show_results()
+
+    def step_n(self, n):
+        for _ in range(n):
+            self.step(display=False)
+
+    def step(self, display=True):
+        """
+        step the simulation once
+        return True if should continue
+        return False if should terminate
+        """
+        # calculate force
+        total_force = self.calc_force()
+        # move
+        new_speed = self.momentum * self.current_speed + self.lr * total_force
+        new_vectors = [move2(x, f) for x, f in zip(self.vectors, new_speed)]
+        self.delta = max([np.linalg.norm(new_x - x) for new_x, x in zip(new_vectors, self.vectors)])
+        # step up k
+        if self.delta < self.e2 and self.k < 50:
+            if display:
                 print(f"k increase from {self.k} -> {self.k + 1}")
-                self.k += 1
-            # condition for ending simulation
-            if self.delta < self.e or \
-                    self.min_dis > 1 - self.e2 or \
-                    self.epoch > self.stop_at:
-                break
-            # journaling
+            self.k += 1
+        # get ready for next step
+        self.vectors = new_vectors
+        self.current_speed = new_speed
+        self.epoch += 1
+        # journaling
+        if display:
             if self.epoch > 1000 and self.epoch % 1000 == 0 and self.min_dis < .5:
                 print("Something is fishy...")
             if self.epoch % 1000 == 0:
                 self.display()
-            # ready to loop
-            self.vectors = new_vectors
-            self.current_speed = new_speed
-            self.epoch += 1
+        # condition for ending simulation
+        if self.delta < self.e or \
+                self.min_dis > 1 - self.e2 or \
+                self.epoch > self.stop_at:
+            return False
+        return True
 
-        self.display()
-        self.show_results()
+    def mutate(self):
+        i = np.random.randint(self.m)
+        random_vector = np.random.randn(self.n)
+        self.vectors[i] = random_vector / np.linalg.norm(random_vector)
+
+    def update_min_dis(self):
+        ...
 
 
 if __name__ == "__main__":
-    s = simulatedAnnealing(n=4, m=24, momentum=.9)
-    s.simulate()
+    s = GDSphere(n=5, m=40, momentum=.9)
+    s.main()
