@@ -1,7 +1,7 @@
 import copy
 
 import numpy as np
-from gradient import GDSphere
+from .gradient import GDSphere
 
 
 def random_rotation_matrix(n):
@@ -25,7 +25,7 @@ def random_rotate(parent: GDSphere):
     n = parent.n
     Q = random_rotation_matrix(n)
     parent.vectors = parent.vectors @ Q
-    parent.current_speed = parent.current_speed @ Q
+    parent.speed = parent.speed @ Q
     return parent
 
 
