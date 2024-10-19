@@ -47,16 +47,9 @@ def force2(x1, x2, k, max_dis_allowed=float("inf")):
 
 
 def move(x, d):
-    # move x along direction d but remain on the unit sphere
-    # first order approximation
-    new_x = x + d
-    return new_x / np.linalg.norm(new_x)
-
-
-def move2(x, d):
-    # move x along direction d but remain on the unit sphere
-    # exact form
-    d = d - x * np.inner(x, d)
+    # move x along direction d on the sphere
+    # d is already perpendicular to x
+    # d = d - x * np.inner(x, d)
     a = np.linalg.norm(d)
     if a == 0:
         return x
@@ -111,7 +104,12 @@ class GDSphere():
         self.most_crowded_index = -1
 
     def display(self):
-        print(self.vectors)
+        print("-" * 24)
+        print(f"Iter = {self.epoch}")
+        print("Speed:")
+        print([list(v) for v in self.speed])
+        print("Positions:")
+        print([list(v) for v in self.vectors])
         print(f"Iter = {self.epoch}, delta = {self.delta}, k = {self.k}, min dis = {self.min_dis}")
         print("-" * 24)
 
@@ -155,19 +153,20 @@ class GDSphere():
 
         # move
         new_speed = self.momentum * self.speed + self.lr * total_force
-        new_vectors = [move2(x, f) for x, f in zip(self.vectors, new_speed)]
+        new_speed1 = [d - x * np.inner(x, d) for x, d in zip(self.vectors, new_speed)]
+        new_vectors = [move(x, f) for x, f in zip(self.vectors, new_speed1)]
         self.delta = max([np.linalg.norm(new_x - x) for new_x, x in zip(new_vectors, self.vectors)])
 
         # get ready for next step
         self.vectors = new_vectors
-        self.speed = new_speed
+        self.speed = np.array(new_speed1)
         self.epoch += 1
         if self.min_dis > self.best_min_dis:
             self.best_min_dis = self.min_dis
             self.best_vectors = self.vectors
 
         # if we sense that we are close to a local minimum
-        if self.delta < self.e2:
+        if self.delta < self.e:
             # # increase the penalty exponential
             # if self.k < 50:
             #     self.k += 1
