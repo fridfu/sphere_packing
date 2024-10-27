@@ -10,10 +10,12 @@ def max_index(a):
     return 0
 
 
-def coulomb_force(d, r, k=2, max_dis_allowed=float("inf")):
+def coulomb_force(d, r, k=2):
+    if r >= 1:
+        return np.zeros_like(d)
     if r == 0:
         return np.random.randn(*d.shape) * 0.1
-    f = min(pow(1 / r, k), max_dis_allowed, 10)
+    f = min(pow(1 / r, k), 10) - 1
     return d / r * f
 
 
@@ -114,17 +116,8 @@ class GDSphere():
         print("-" * 24)
 
     def calc_force(self):
-        # the force to be used
-        f = elastic_force
-        u = elastic_potential
-
         vectors = self.vectors
         total_force = np.zeros_like(vectors)
-        potential = np.zeros(self.m)
-
-        # # TODO: this is a wierd/good method?
-        # max_dis_allowed = self.delta * 1000 / self.lr
-
         dis = []
         for i in range(self.m):
             for j in range(i + 1, self.m):
@@ -132,31 +125,23 @@ class GDSphere():
                 r = np.linalg.norm(d)
                 dis.append(r)
                 # calculate force
-                # total_force[i] += f(vectors[i], vectors[j], self.k, max_dis_allowed)
-                # total_force[j] += f(vectors[j], vectors[i], self.k, max_dis_allowed)
-                total_force[i] += f(d, r)
+                total_force[i] += coulomb_force(d, r)
                 total_force[j] -= total_force[i]
-                # calculate potential
-                v = u(r)
-                potential[i] += v
-                potential[j] += v
         self.min_dis = min(dis)
-        return total_force, potential
+        return total_force
 
     def step_n(self, n, display=False):
         for _ in range(n):
             self.step(display=display)
 
     def step(self, display=True):
-        # calculate force and potential
-        total_force, potential = self.calc_force()
-
+        # calculate force
+        total_force = self.calc_force()
         # move
         new_speed = self.momentum * self.speed + self.lr * total_force
         new_speed1 = [d - x * np.inner(x, d) for x, d in zip(self.vectors, new_speed)]
         new_vectors = [move(x, f) for x, f in zip(self.vectors, new_speed1)]
         self.delta = max([np.linalg.norm(new_x - x) for new_x, x in zip(new_vectors, self.vectors)])
-
         # get ready for next step
         self.vectors = new_vectors
         self.speed = np.array(new_speed1)
@@ -164,30 +149,6 @@ class GDSphere():
         if self.min_dis > self.best_min_dis:
             self.best_min_dis = self.min_dis
             self.best_vectors = self.vectors
-
-        # if we sense that we are close to a local minimum
-        if self.delta < self.e:
-            # # increase the penalty exponential
-            # if self.k < 50:
-            #     self.k += 1
-            # pick out the most crowded sphere
-            # and move it to a random place
-            # a sphere will not be moved in two
-            # consecutive times
-            i = max_index(potential)
-            if i != self.most_crowded_index:
-                print(f"Sphere {i} is so crowded with potential {potential[i]}!")
-                print("Moving it to a different place...")
-                d = np.random.randn(self.n)
-                self.vectors[i] = (d / np.linalg.norm(d))
-                self.speed[i] = np.zeros(self.n)
-                self.most_crowded_index = i
-
-        # if get into a wierd position...
-        # if self.epoch > 1000 and self.epoch % 1000 == 0 \
-        #         and (self.min_dis < .5 or self.min_dis < self.best_min_dis):
-        #     if display:
-        #         print(f"Something is fishy... min dis = {self.min_dis}")
 
     def mutate(self):
         i = np.random.randint(self.m)

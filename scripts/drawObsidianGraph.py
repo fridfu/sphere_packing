@@ -22,7 +22,7 @@ def npy2ObsidianGraph(aim_folder, file, cos = 0.5, delta = 0.01):
 
 if __name__ == "__main__":
     aim_folder = "graph2obsidian"       # select a folder to save the sub-folder that present the graph
-    file = "raw_data2131"  # the .npy file of balls' centres.
+    file = "raw_data2148"  # the .npy file of balls' centres.
     c = 0.5
     d = 0.01 #  c - d < cos(x, y) < c + d then x and y are connected
 
